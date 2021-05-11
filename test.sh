@@ -166,7 +166,7 @@ fi
 # disable wifi...
 if [ ${ignoreWifi} -eq 0 ]
 then
- msg "Disabling wifi..."
+ msg "${GREEN}Disabling wifi...${NOFORMAT}"
    line='dtoverlay=disable-wifi'
    file='/boot/firmware/config.txt'
    ssh ${user}@${args[0]} <<WIFI
@@ -176,6 +176,21 @@ then
      fi
      grep -qF "${line}" "${file}"  || echo "${line}" | sudo tee --append "${file}"
 WIFI
+fi
+
+# disable bluetooth...
+if [ ${ignoreBt} -eq 0 ]
+then
+ msg "${GREEN}Disabling bluetooth...${NOFORMAT}"
+   line='dtoverlay=disable-bt'
+   file='/boot/firmware/config.txt'
+   ssh ${user}@${args[0]} <<BLUETOOTH
+     if [ ! -f "${file}" ]
+     then
+       touch ${file}
+     fi
+     grep -qF "${line}" "${file}"  || echo "${line}" | sudo tee --append "${file}"
+BLUETOOTH
 fi
 
 # date
