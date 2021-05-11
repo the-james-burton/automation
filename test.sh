@@ -145,6 +145,17 @@ parse_params() {
   return 0
 }
 
+append_line_if_not_exists() {
+  msg "${CYAN}line: ${1}, file: ${2}${NOFORMAT}"
+     ssh ${user}@${args[0]} <<APPEND
+     if [ ! -f "${2}" ]
+     then
+       touch ${2}
+     fi
+     grep -qF "${1}" "${2}"  || echo "${1}" | sudo tee --append "${2}"
+APPEND
+}
+
 parse_params "$@"
 setup_colors
 
@@ -167,30 +178,14 @@ fi
 if [ ${ignoreWifi} -eq 0 ]
 then
  msg "${GREEN}Disabling wifi...${NOFORMAT}"
-   line='dtoverlay=disable-wifi'
-   file='/boot/firmware/config.txt'
-   ssh ${user}@${args[0]} <<WIFI
-     if [ ! -f "${file}" ]
-     then
-       touch ${file}
-     fi
-     grep -qF "${line}" "${file}"  || echo "${line}" | sudo tee --append "${file}"
-WIFI
+   append_line_if_not_exists 'dtoverlay=disable-wifi' '/boot/firmware/config.txt'
 fi
 
 # disable bluetooth...
 if [ ${ignoreBt} -eq 0 ]
 then
  msg "${GREEN}Disabling bluetooth...${NOFORMAT}"
-   line='dtoverlay=disable-bt'
-   file='/boot/firmware/config.txt'
-   ssh ${user}@${args[0]} <<BLUETOOTH
-     if [ ! -f "${file}" ]
-     then
-       touch ${file}
-     fi
-     grep -qF "${line}" "${file}"  || echo "${line}" | sudo tee --append "${file}"
-BLUETOOTH
+   append_line_if_not_exists 'dtoverlay=disable-bt' '/boot/firmware/config.txt'
 fi
 
 # date
