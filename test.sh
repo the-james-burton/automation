@@ -17,16 +17,28 @@ script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 # a required minimum.
 usage() {
   cat <<EOF
-Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [-f] -p param_value arg1 [arg2...]
+Usage: $(basename "${BASH_SOURCE[0]}") [OPTION]... IP
 
-Script description here.
+Options:
+-h, --help            Print this help and exit
+-v, --verbose         Print script debug info
+-n, --no-public-key   Do not install your public key
+-u, --user            The remote user (default 'ubuntu')
+-k, --key       The name of the public key in your ~/.ssh directory (default 'id_rsa.pub')
 
-Available options:
+Arguments: single IP address of the target server to provision
 
--h, --help      Print this help and exit
--v, --verbose   Print script debug info
--f, --flag      Some flag description
--p, --param     Some param description
+*** INCOMPLETE ***
+This script will provision a fresh Raspberry Pi running Ubuntu Server 21.04 to be part of a microk8s cluster.
+
+It will perform the following actions, each of which can be disabled:
+
+1. Install your public key for passwordless login
+2. TODO Disable wifi
+3. TODO Disable bluetooth
+4. TODO Configure cgroups
+5. TODO more stuff...
+
 EOF
   exit
 }
@@ -94,16 +106,22 @@ die() {
 parse_params() {
   # default values of variables set from params
   flag=0
-  param=''
+  user='ubuntu'
+  noPublicKey=0
+  key='id_rsa.pub'
 
   while :; do
     case "${1-}" in
     -h | --help) usage ;;
     -v | --verbose) set -x ;;
     --no-color) NO_COLOR=1 ;;
-    -f | --flag) flag=1 ;; # example flag
-    -p | --param) # example named parameter
-      param="${2-}"
+    -n | --no-public-key) noPublicKey=1 ;; # don't copy your ssh public key to the server
+    -u | --user) # remote user
+      user="${2-}"
+      shift
+      ;;
+    -k | --key) # name of the public key in your ~/.ssh directory
+      key="${2-}"
       shift
       ;;
     -?*) die "Unknown option: $1" ;;
@@ -115,8 +133,8 @@ parse_params() {
   args=("$@")
 
   # check required params and arguments
-  [[ -z "${param-}" ]] && die "Missing required parameter: param"
-  [[ ${#args[@]} -eq 0 ]] && die "Missing script arguments"
+  # [[ -z "${ip-}" ]] && die "Missing required parameter: ip"
+  [[ ${#args[@]} -eq 0 ]] && die "Missing IP address"
 
   return 0
 }
@@ -124,9 +142,19 @@ parse_params() {
 parse_params "$@"
 setup_colors
 
-# script logic here
+msg "${GREEN}Read parameters:${NOFORMAT}"
+msg "- no-public-key: ${noPublicKey}"
+msg "- user: ${user}"
+msg "- key: ${key}"
+msg "- ip: ${args[*]-}"
 
-msg "${RED}Read parameters:${NOFORMAT}"
-msg "- flag: ${flag}"
-msg "- param: ${param}"
-msg "- arguments: ${args[*]-}"
+# script logic here
+if [ ${noPublicKey} -eq 0 ]
+then
+ msg "Installing your public key"
+ ssh-copy-id  -i ~/.ssh/${key} ${user}@${args[0]}
+fi
+# date
+# hostname
+# cat /etc/resolv.conf
+
