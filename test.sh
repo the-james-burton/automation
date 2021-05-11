@@ -22,7 +22,9 @@ Usage: $(basename "${BASH_SOURCE[0]}") [OPTION]... IP
 Options:
 -h, --help            Print this help and exit
 -v, --verbose         Print script debug info
--n, --no-public-key   Do not install your public key
+    --no-public-key   Do not install your public key
+    --ignore-wifi     Do not affect existing wifi config
+    --ignore-bt       Do not affect existing bluetooth config
 -u, --user            The remote user (default 'ubuntu')
 -k, --key       The name of the public key in your ~/.ssh directory (default 'id_rsa.pub')
 
@@ -108,6 +110,8 @@ parse_params() {
   flag=0
   user='ubuntu'
   noPublicKey=0
+  ignoreWifi=0
+  ignoreBt=0
   key='id_rsa.pub'
 
   while :; do
@@ -115,7 +119,9 @@ parse_params() {
     -h | --help) usage ;;
     -v | --verbose) set -x ;;
     --no-color) NO_COLOR=1 ;;
-    -n | --no-public-key) noPublicKey=1 ;; # don't copy your ssh public key to the server
+    --no-public-key) noPublicKey=1 ;; # don't copy your ssh public key to the server
+    --ignore-wifi) ignoreWifi=1 ;; # do not affect the wifi config
+    --ignore-bt) ignoreBt=1 ;; # do not affect the bluetooth config
     -u | --user) # remote user
       user="${2-}"
       shift
@@ -144,16 +150,34 @@ setup_colors
 
 msg "${GREEN}Read parameters:${NOFORMAT}"
 msg "- no-public-key: ${noPublicKey}"
+msg "- ignore-wifi: ${ignoreWifi}"
+msg "- ignore-bluetooth: ${ignoreBt}"
 msg "- user: ${user}"
 msg "- key: ${key}"
 msg "- ip: ${args[*]-}"
 
-# script logic here
+# install public key for passwordless login...
 if [ ${noPublicKey} -eq 0 ]
 then
- msg "Installing your public key"
+ msg "Installing your public key..."
  ssh-copy-id  -i ~/.ssh/${key} ${user}@${args[0]}
 fi
+
+# disable wifi...
+if [ ${ignoreWifi} -eq 0 ]
+then
+ msg "Disabling wifi..."
+   line='dtoverlay=disable-wifi'
+   file='/boot/firmware/config.txt'
+   ssh ${user}@${args[0]} <<WIFI
+     if [ ! -f "${file}" ]
+     then
+       touch ${file}
+     fi
+     grep -qF "${line}" "${file}"  || echo "${line}" | sudo tee --append "${file}"
+WIFI
+fi
+
 # date
 # hostname
 # cat /etc/resolv.conf
