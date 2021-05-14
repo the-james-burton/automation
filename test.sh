@@ -36,10 +36,11 @@ This script will provision a fresh Raspberry Pi running Ubuntu Server 21.04 to b
 It will perform the following actions, each of which can be disabled:
 
 1. Install your public key for passwordless login
-2. TODO Disable wifi
-3. TODO Disable bluetooth
+2. TODO first time forced password change
+2. Disable wifi
+3. Disable bluetooth
 4. TODO Configure cgroups
-5. TODO more stuff...
+5. TODO install microk8s
 
 EOF
   exit
