@@ -6,15 +6,6 @@ trap cleanup SIGINT SIGTERM ERR EXIT
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 
-# Having the usage() relatively close to the top of the script, it will act in two ways:
-#
-#  1.  to display help for someone who does not know all the options and does not want to go
-#      over the whole script to discover them,
-#  2.  as a minimal documentation when someone modifies the script (for example you, 2 weeks
-#      later, not even remembering writing it in the first place).
-#
-# I don’t argue to document every function here. But a short, nice script usage message is
-# a required minimum.
 usage() {
   cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [OPTION]... IP
@@ -25,6 +16,7 @@ Options:
     --no-public-key   Do not install your public key
     --ignore-wifi     Do not affect existing wifi config
     --ignore-bt       Do not affect existing bluetooth config
+    --ignore-cgroups  Do not affect existing cgroups config
 -u, --user            The remote user (default 'ubuntu')
 -k, --key       The name of the public key in your ~/.ssh directory (default 'id_rsa.pub')
 
@@ -46,12 +38,6 @@ EOF
   exit
 }
 
-# Think about the trap like of a finally block for the script. At the end of the script – normal,
-# caused by an error or an external signal – the cleanup() function will be executed. This is a
-# place where you can, for example, try to remove all temporary files created by the script.
-
-# Just remember that the cleanup() can be called not only at the end but as well having the script
-# done any part of the work. Not necessarily all the resources you try to cleanup will exist.
 cleanup() {
   trap - SIGINT SIGTERM ERR EXIT
   # script cleanup here
@@ -78,34 +64,6 @@ die() {
   exit "$code"
 }
 
-# If there is anything that makes sense to parametrized in the script, I usually do that.
-# Even if the script is used only in a single place. It makes it easier to copy and reuse it,
-# which often happens sooner than later. Also, even if something needs to be hardcoded,
-# usually there is a better place for that on a higher level than the Bash script.
-#
-# There are three main types of CLI parameters – flags, named parameters, and positional
-# arguments. The parse_params() function supports them all.
-#
-# The only one of the common parameter patterns, that is not handled here, is concatenated
-# multiple single-letter flags. To be able to pass two flags as -ab, instead of -a -b,
-# some additional code would be needed.
-#
-# The while loop is a manual way of parsing parameters. In every other language you should
-# use one of the built-in parsers or available libraries, but, well, this is Bash.
-#
-# An example flag (-f) and named parameter (-p) are in the template. Just change or copy
-# them to add other params. And do not forget to update the usage() afterward.
-#
-# The important thing here, usually missing when you just take the first google result
-# for Bash arguments parsing, is throwing an error on an unknown option. The fact the script
-# received an unknown option means the user wanted it to do something that the script is
-# unable to fulfill. So user expectations and script behavior may be quite different.
-# It’s better to prevent execution altogether before something bad will happen.
-#
-# There are two alternatives for parsing parameters in Bash. It’s getopt and getopts.
-# There are arguments both for and against using them. I found those tools not best,
-# since by default getopt on macOS is behaving completely differently, and getopts does
-# not support long parameters (like --help).
 parse_params() {
   # default values of variables set from params
   flag=0
@@ -124,7 +82,7 @@ parse_params() {
     --no-public-key) noPublicKey=1 ;; # don't copy your ssh public key to the server
     --ignore-wifi) ignoreWifi=1 ;; # do not affect the wifi config
     --ignore-bt) ignoreBt=1 ;; # do not affect the bluetooth config
-    --ignore-cgroups) ignoreCGroups=1 ;; # do not affect the bluetooth config
+    --ignore-cgroups) ignoreCGroups=1 ;; # do not affect the cgroups setting
     -u | --user) # remote user
       user="${2-}"
       shift
@@ -148,6 +106,10 @@ parse_params() {
   return 0
 }
 
+# appends the given line to the end of the given file if it is not already present in the file
+# parameters
+#  1: the line to add to a file
+#  2: absolute path to a file
 append_line_if_not_exists() {
   msg "${CYAN}line: ${1}, file: ${2}${NOFORMAT}"
      ssh ${user}@${args[0]} <<APPEND
@@ -159,6 +121,10 @@ append_line_if_not_exists() {
 APPEND
 }
 
+# appends the given text to the start of the given file if it is not already present in the file
+# parameters
+#  1: the text to add to a file
+#  2: absolute path to a file
 prefix_text_if_not_exists() {
   msg "${CYAN}text: ${1}, file: ${2}${NOFORMAT}"
      ssh ${user}@${args[0]} <<PREFIX
@@ -213,9 +179,5 @@ then
    prefix_text_if_not_exists 'cgroup_enable=memory cgroup_memory=1 ' '/boot/firmware/cmdline.txt'
 fi
 
- msg "${GREEN}Completed!${NOFORMAT}"
-
-# date
-# hostname
-# cat /etc/resolv.conf
-
+# end of script...
+msg "${GREEN}Completed!${NOFORMAT}"
