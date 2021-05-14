@@ -39,7 +39,7 @@ It will perform the following actions, each of which can be disabled:
 2. TODO first time forced password change
 2. Disable wifi
 3. Disable bluetooth
-4. TODO Configure cgroups
+4. Configure cgroups
 5. TODO install microk8s
 
 EOF
@@ -113,6 +113,7 @@ parse_params() {
   noPublicKey=0
   ignoreWifi=0
   ignoreBt=0
+  ignoreCGroups=0
   key='id_rsa.pub'
 
   while :; do
@@ -123,6 +124,7 @@ parse_params() {
     --no-public-key) noPublicKey=1 ;; # don't copy your ssh public key to the server
     --ignore-wifi) ignoreWifi=1 ;; # do not affect the wifi config
     --ignore-bt) ignoreBt=1 ;; # do not affect the bluetooth config
+    --ignore-cgroups) ignoreCGroups=1 ;; # do not affect the bluetooth config
     -u | --user) # remote user
       user="${2-}"
       shift
@@ -157,13 +159,28 @@ append_line_if_not_exists() {
 APPEND
 }
 
+prefix_text_if_not_exists() {
+  msg "${CYAN}text: ${1}, file: ${2}${NOFORMAT}"
+     ssh ${user}@${args[0]} <<PREFIX
+     if [ ! -f "${2}" ]
+     then
+       touch "${2}"
+     fi
+     grep -qF "${1}" "${2}" && exit
+     echo adding text: "${1}", file: "${2}"
+     mapfile <"${2}"
+     echo "${1}""\${MAPFILE[@]}" | sudo tee "${2}"
+PREFIX
+}
+
 parse_params "$@"
 setup_colors
 
 msg "${GREEN}Read parameters:${NOFORMAT}"
 msg "- no-public-key: ${noPublicKey}"
 msg "- ignore-wifi: ${ignoreWifi}"
-msg "- ignore-bluetooth: ${ignoreBt}"
+msg "- ignore-bt: ${ignoreBt}"
+msg "- ignore-cgroups: ${ignoreCGroups}"
 msg "- user: ${user}"
 msg "- key: ${key}"
 msg "- ip: ${args[*]-}"
@@ -188,6 +205,15 @@ then
  msg "${GREEN}Disabling bluetooth...${NOFORMAT}"
    append_line_if_not_exists 'dtoverlay=disable-bt' '/boot/firmware/config.txt'
 fi
+
+# enable c-groups...
+if [ ${ignoreCGroups} -eq 0 ]
+then
+ msg "${GREEN}Enabling c-groups...${NOFORMAT}"
+   prefix_text_if_not_exists 'cgroup_enable=memory cgroup_memory=1 ' '/boot/firmware/cmdline.txt'
+fi
+
+ msg "${GREEN}Completed!${NOFORMAT}"
 
 # date
 # hostname
