@@ -17,6 +17,7 @@ Options:
     --ignore-wifi     Do not affect existing wifi config
     --ignore-bt       Do not affect existing bluetooth config
     --ignore-cgroups  Do not affect existing cgroups config
+    --install-openj9  Install OpenJ9 into ~/jvm/openj9-16-jre
 -u, --user            The remote user (default 'ubuntu')
 -k, --key       The name of the public key in your ~/.ssh directory (default 'id_rsa.pub')
 
@@ -33,6 +34,7 @@ It will perform the following actions, each of which can be disabled:
 3. Disable bluetooth
 4. Configure cgroups
 5. TODO install microk8s
+6. TODO Download OpenJ9
 
 EOF
   exit
@@ -72,6 +74,7 @@ parse_params() {
   ignoreWifi=0
   ignoreBt=0
   ignoreCGroups=0
+  installOpenJ9=0
   key='id_rsa.pub'
 
   while :; do
@@ -83,6 +86,7 @@ parse_params() {
     --ignore-wifi) ignoreWifi=1 ;; # do not affect the wifi config
     --ignore-bt) ignoreBt=1 ;; # do not affect the bluetooth config
     --ignore-cgroups) ignoreCGroups=1 ;; # do not affect the cgroups setting
+    --install-openj9) installOpenJ9=1 ;; # install OpenJ9
     -u | --user) # remote user
       user="${2-}"
       shift
@@ -147,6 +151,7 @@ msg "- no-public-key: ${noPublicKey}"
 msg "- ignore-wifi: ${ignoreWifi}"
 msg "- ignore-bt: ${ignoreBt}"
 msg "- ignore-cgroups: ${ignoreCGroups}"
+msg "- install-openj9: ${installOpenJ9}"
 msg "- user: ${user}"
 msg "- key: ${key}"
 
@@ -176,6 +181,15 @@ if [ ${ignoreCGroups} -eq 0 ]
 then
  msg "${GREEN}Enabling c-groups...${NOFORMAT}"
    prefix_text_if_not_exists 'cgroup_enable=memory cgroup_memory=1 ' '/boot/firmware/cmdline.txt'
+fi
+
+# install openj9...
+if [ ${installOpenJ9} -eq 1 ]
+then
+ msg "${GREEN}Installing OpenJ9 into ~/jvm/openj9-16-jre...${NOFORMAT}"
+ ssh ${user}@${args[0]} <<JVM
+   curl https://github.com/AdoptOpenJDK/openjdk16-binaries/releases/download/jdk-16.0.1%2B9_openj9-0.26.0/OpenJDK16U-jdk_aarch64_linux_openj9_16.0.1_9_openj9-0.26.0.tar.gz --location --create-dirs --output ~/jvm/openj9-16.gz
+JVM
 fi
 
 # end of script...
