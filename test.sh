@@ -149,7 +149,6 @@ msg "- ignore-bt: ${ignoreBt}"
 msg "- ignore-cgroups: ${ignoreCGroups}"
 msg "- user: ${user}"
 msg "- key: ${key}"
-msg "- ip: ${args[*]-}"
 
 # install public key for passwordless login...
 if [ ${noPublicKey} -eq 0 ]
